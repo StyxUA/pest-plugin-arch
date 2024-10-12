@@ -13,6 +13,8 @@ use ReflectionFunction;
  */
 final class FunctionDescription extends ObjectDescription // @phpstan-ignore-line
 {
+    public ObjectUsesByLines $usesByLines;
+
     /**
      * {@inheritDoc}
      */
@@ -29,6 +31,7 @@ final class FunctionDescription extends ObjectDescription // @phpstan-ignore-lin
         /** @var class-string<mixed> $path */
         $description->name = $path;
         $description->uses = new ObjectUses([]);
+        $description->usesByLines = new ObjectUsesByLines([]);
         // $description->reflectionClass = new ReflectionFunction($path);
 
         return $description;
