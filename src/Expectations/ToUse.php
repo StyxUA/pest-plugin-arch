@@ -36,7 +36,7 @@ final class ToUse
             static function (LayerOptions $options) use ($blueprint): void {
                 $blueprint->expectToUse(
                     $options,
-                    static function (string $value, string $dependOn): void {
+                    static function (string $value, string $dependOn): never {
                         $message = "Expecting '$value' to use '$dependOn'.";
                         throw new ExpectationFailedException($message);
                     },

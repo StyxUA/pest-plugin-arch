@@ -38,7 +38,7 @@ final class ObjectDescription extends \PHPUnit\Architecture\Elements\ObjectDescr
 
         // collect object's uses (including core expressions) with lines
         $usesByLines = [];
-        if (count($uses) > 0) {
+        if ($uses !== []) {
             foreach ([...PhpCoreExpressions::$ENABLED, Name::class] as $class) {
                 $names = ServiceContainer::$nodeFinder->findInstanceOf(
                     $description->stmts,

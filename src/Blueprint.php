@@ -80,7 +80,7 @@ final class Blueprint
                 )), 'name');
 
                 $uses = array_intersect($objectsUses, $expectedUses);
-                if (count($uses) === 0) {
+                if ($uses === []) {
                     $failure(
                         $targetValue,
                         $dependency->value,
