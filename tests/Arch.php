@@ -31,6 +31,7 @@ arch('base')
         'PHPUnit\Architecture',
         'Symfony\Component\Finder\Finder',
         'PhpParser\Node',
+        'PhpParser\NodeAbstract',
         'Whoops\Exception\Frame',
     ])->ignoring(['PHPUnit\Framework', 'Composer']);
 

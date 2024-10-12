@@ -75,7 +75,7 @@ final class Blueprint
                 );
 
                 $objectsUses = array_column(array_merge(...array_map(
-                    static fn (Objects\ObjectDescription $object): array => iterator_to_array($object->usesByLines->getIterator()), // @phpstan-ignore-line
+                    static fn (Objects\ObjectDescription|Objects\FunctionDescription $object): array => iterator_to_array($object->usesByLines->getIterator()), // @phpstan-ignore-line
                     iterator_to_array($targetLayer->getIterator()),
                 )), 'name');
 
