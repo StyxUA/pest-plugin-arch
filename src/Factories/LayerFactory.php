@@ -56,15 +56,17 @@ final class LayerFactory
                     return true;
                 }))
             );
-            $object->usesByLines = $object->usesByLines->cloneFiltered(static function ($use) use ($options): bool {
-                foreach ($options->exclude as $exclude) {
-                    if (str_starts_with($use['name'], $exclude)) {
-                        return false;
+            if ($object instanceof \Pest\Arch\Objects\ObjectDescription) {
+                $object->usesByLines = $object->usesByLines->cloneFiltered(static function (array $use) use ($options): bool {
+                    foreach ($options->exclude as $exclude) {
+                        if (str_starts_with((string) $use['name'], $exclude)) {
+                            return false;
+                        }
                     }
-                }
 
-                return true;
-            });
+                    return true;
+                });
+            }
 
             return $object;
         }, $this->objectsStorage->allByNamespace($name, $onlyUserDefinedUses));
