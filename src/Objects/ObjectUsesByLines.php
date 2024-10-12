@@ -27,6 +27,7 @@ final class ObjectUsesByLines implements IteratorAggregate
     public function filter(callable $callback): self
     {
         $this->uses = array_values(array_filter($this->uses, $callback));
+
         return $this;
     }
 }

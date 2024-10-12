@@ -6,11 +6,9 @@ namespace Pest\Arch\Expectations;
 
 use Pest\Arch\Blueprint;
 use Pest\Arch\Collections\Dependencies;
-use Pest\Arch\Exceptions\ArchExpectationFailedException;
 use Pest\Arch\Options\LayerOptions;
 use Pest\Arch\SingleArchExpectation;
 use Pest\Arch\ValueObjects\Targets;
-use Pest\Arch\ValueObjects\Violation;
 use Pest\Expectation;
 use PHPUnit\Framework\ExpectationFailedException;
 

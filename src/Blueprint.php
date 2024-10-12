@@ -185,6 +185,7 @@ final class Blueprint
                             $use['name'],
                             new Violation($this->normalizePath($object->path), $use['startLine'], $use['endLine']),
                         );
+
                         return;
                     }
                 }
@@ -231,6 +232,7 @@ final class Blueprint
                                 $object->name,
                                 new Violation($this->normalizePath($object->path), $use['startLine'], $use['endLine']),
                             );
+
                             return;
                         }
                     }
@@ -275,6 +277,7 @@ final class Blueprint
     {
         $normalized = preg_replace('/[\/\\\\]vendor[\/\\\\]composer[\/\\\\]\.\.[\/\\\\]\.\./', '', $path);
         assert($normalized !== null);
+
         return $normalized;
     }
 }
