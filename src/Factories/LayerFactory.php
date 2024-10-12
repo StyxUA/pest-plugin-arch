@@ -56,6 +56,14 @@ final class LayerFactory
                     return true;
                 }))
             );
+            $object->usesByLines?->filter(static function ($use) use ($options): bool {
+                foreach ($options->exclude as $exclude) {
+                    if (str_starts_with($use['name'], $exclude)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
 
             return $object;
         }, $this->objectsStorage->allByNamespace($name, $onlyUserDefinedUses));
