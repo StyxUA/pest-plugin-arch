@@ -29,8 +29,9 @@ final class ObjectDescriptionFactory
     {
         self::ensureServiceContainerIsInitialized();
 
-        $isFromVendor = str_contains((string) realpath($filename), DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR);
+        $path = (string) realpath($filename);
 
+        $isFromVendor = str_contains($path, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR);
         $originalErrorReportingLevel = error_reporting();
         error_reporting($originalErrorReportingLevel & ~E_USER_DEPRECATED);
 
@@ -47,13 +48,19 @@ final class ObjectDescriptionFactory
             return null;
         }
 
-        if (! $isFromVendor) {
+        if ($object instanceof ObjectDescription) {
             $object->uses = new ObjectUses(array_values(
                 array_filter(
                     iterator_to_array($object->uses->getIterator()),
                     static fn (string $use): bool => (! $onlyUserDefinedUses || self::isUserDefined($use)) && ! self::isSameLayer($object, $use),
                 )
             ));
+            $ignoredLines = self::getIgnoredLines($path);
+            $object->usesByLines->filter(
+                static fn (array $use): bool => ! in_array($use['startLine'], $ignoredLines, true)
+                    && (! $onlyUserDefinedUses || self::isUserDefined($use['name']))
+                    && ! self::isSameLayer($object, $use['name']),
+            );
         }
 
         return $object;
@@ -100,5 +107,27 @@ final class ObjectDescriptionFactory
             || $use === 'static'
             || $use === 'parent'
             || $object->reflectionClass->getNamespaceName() === $use;
+    }
+
+    /**
+     * Scans file for ignored lines (@pest-arch-ignore-line and @pest-arch-ignore-next-line)
+     *
+     * @return int[]
+     */
+    private static function getIgnoredLines(string $filename): array
+    {
+        $ignoredLines = [];
+        $lines = file($filename);
+        if (is_array($lines)) {
+            foreach ($lines as $lineNo => $line) {
+                if (str_contains($line, '@pest-arch-ignore-line')) {
+                    $ignoredLines[] = $lineNo + 1;
+                } elseif (str_contains($line, '@pest-arch-ignore-next-line')) {
+                    $ignoredLines[] = $lineNo + 2;
+                }
+            }
+        }
+
+        return array_values(array_unique($ignoredLines, SORT_NUMERIC));
     }
 }

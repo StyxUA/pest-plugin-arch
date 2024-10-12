@@ -10,16 +10,12 @@ use Pest\Arch\Options\LayerOptions;
 use Pest\Arch\Repositories\ObjectsRepository;
 use Pest\Arch\Support\AssertLocker;
 use Pest\Arch\Support\Composer;
-use Pest\Arch\Support\PhpCoreExpressions;
 use Pest\Arch\ValueObjects\Dependency;
 use Pest\Arch\ValueObjects\Targets;
 use Pest\Arch\ValueObjects\Violation;
 use Pest\TestSuite;
-use PhpParser\Node\Expr;
-use PhpParser\Node\Name;
 use PHPUnit\Architecture\ArchitectureAsserts;
 use PHPUnit\Architecture\Elements\ObjectDescription;
-use PHPUnit\Architecture\Services\ServiceContainer;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -40,7 +36,7 @@ final class Blueprint
     public function __construct(
         private readonly LayerFactory $layerFactory,
         private readonly Targets $target,
-        private readonly Dependencies $dependencies
+        private readonly Dependencies $dependencies,
     ) {
         // ...
     }
@@ -70,13 +66,26 @@ final class Blueprint
             foreach ($this->dependencies->values as $dependency) {
                 $dependencyLayer = $this->layerFactory->make($options, $dependency->value);
 
-                try {
-                    $this->assertDoesNotDependOn($targetLayer, $dependencyLayer);
-                } catch (ExpectationFailedException) {
+                if ($targetLayer->equals($dependencyLayer)) {
                     continue;
                 }
+                $expectedUses = array_map(
+                    static fn (ObjectDescription $object): string => $object->name,
+                    iterator_to_array($dependencyLayer->getIterator()),
+                );
 
-                $failure($targetValue, $dependency->value);
+                $objectsUses = array_column(array_merge(...array_map(
+                    static fn (Objects\ObjectDescription $object): array => iterator_to_array($object->usesByLines->getIterator()), // @phpstan-ignore-line
+                    iterator_to_array($targetLayer->getIterator()),
+                )), 'name');
+
+                $uses = array_intersect($objectsUses, $expectedUses);
+                if (count($uses) === 0) {
+                    $failure(
+                        $targetValue,
+                        $dependency->value,
+                    );
+                }
             }
         }
 
@@ -153,22 +162,29 @@ final class Blueprint
         foreach ($this->target->value as $targetValue) {
             $allowedUses = array_merge(
                 ...array_map(fn (Layer $layer): array => array_map(
-                    fn (ObjectDescription $object): string => $object->name, iterator_to_array($layer->getIterator())), array_map(
+                    fn (ObjectDescription $object): string => $object->name, iterator_to_array($layer->getIterator())),
+                    array_map(
                         fn (string $dependency): Layer => $this->layerFactory->make($options, $dependency),
                         [
                             $targetValue, ...array_map(
-                                fn (Dependency $dependency): string => $dependency->value, $this->dependencies->values
+                                fn (Dependency $dependency): string => $dependency->value, $this->dependencies->values,
                             ),
                         ],
-                    )
-                ));
+                    ),
+                ),
+            );
 
             $layer = $this->layerFactory->make($options, $targetValue);
+            /** @var Objects\ObjectDescription $object */
             foreach ($layer as $object) {
-                foreach ($object->uses as $use) {
-                    if (! in_array($use, $allowedUses, true)) {
-                        $failure($targetValue, $this->dependencies->__toString(), $use, $this->getUsagePathAndLines($layer, $targetValue, $use));
-
+                foreach ($object->usesByLines as $use) {
+                    if (! in_array($use['name'], $allowedUses, true)) {
+                        $failure(
+                            $targetValue,
+                            $this->dependencies->__toString(),
+                            $use['name'],
+                            new Violation($this->normalizePath($object->path), $use['startLine'], $use['endLine']),
+                        );
                         return;
                     }
                 }
@@ -197,13 +213,27 @@ final class Blueprint
             foreach ($this->target->value as $targetValue) {
                 $dependencyLayer = $this->layerFactory->make($options, $targetValue);
 
-                try {
-                    $this->assertDoesNotDependOn($namespaceLayer, $dependencyLayer);
-                } catch (ExpectationFailedException) {
-                    $objects = $this->getObjectsWhichUsesOnLayerAFromLayerB($namespaceLayer, $dependencyLayer);
-                    [$dependOn, $target] = explode(' <- ', $objects[0]);
+                if ($namespaceLayer->equals($dependencyLayer)) {
+                    continue;
+                }
 
-                    $failure($target, $dependOn, $this->getUsagePathAndLines($namespaceLayer, $dependOn, $target));
+                $disallowedUses = array_map(
+                    static fn (ObjectDescription $object): string => $object->name,
+                    iterator_to_array($dependencyLayer->getIterator()),
+                );
+
+                /** @var Objects\ObjectDescription $object */
+                foreach ($namespaceLayer as $object) {
+                    foreach ($object->usesByLines as $use) {
+                        if (in_array($use['name'], $disallowedUses, true)) {
+                            $failure(
+                                $targetValue,
+                                $object->name,
+                                new Violation($this->normalizePath($object->path), $use['startLine'], $use['endLine']),
+                            );
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -241,47 +271,10 @@ final class Blueprint
         Assert::assertEquals($expected, $actual, $message);
     }
 
-    private function getUsagePathAndLines(Layer $layer, string $objectName, string $target): ?Violation
+    private function normalizePath(string $path): string
     {
-        $dependOnObjects = array_filter(
-            $layer->getIterator()->getArrayCopy(), //@phpstan-ignore-line
-            fn (ObjectDescription $objectDescription): bool => $objectDescription->name === $objectName
-        );
-
-        /** @var ObjectDescription $dependOnObject */
-        $dependOnObject = array_pop($dependOnObjects);
-
-        /** @var class-string<\PhpParser\Node> $class */
-        $class = PhpCoreExpressions::getClass($target) ?? Name::class;
-
-        $nodes = ServiceContainer::$nodeFinder->findInstanceOf(
-            $dependOnObject->stmts,
-            $class,
-        );
-
-        /** @var array<int, Name|Expr> $nodes */
-        $names = array_values(array_filter(
-            $nodes, static function ($node) use ($target): bool {
-                $name = $node instanceof Name ? $node->toString() : PhpCoreExpressions::getName($node);
-
-                return $name === $target;
-            }
-        ));
-
-        if ($names === []) {
-            return null;
-        }
-
-        $startLine = $names[0]->getAttribute('startLine');
-        assert(is_int($startLine));
-
-        $endLine = $names[0]->getAttribute('endLine');
-        assert(is_int($endLine));
-
-        $path = preg_replace('/[\/\\\\]vendor[\/\\\\]composer[\/\\\\]\.\.[\/\\\\]\.\./', '', $dependOnObject->path);
-
-        assert($path !== null);
-
-        return new Violation($path, $startLine, $endLine);
+        $normalized = preg_replace('/[\/\\\\]vendor[\/\\\\]composer[\/\\\\]\.\.[\/\\\\]\.\./', '', $path);
+        assert($normalized !== null);
+        return $normalized;
     }
 }

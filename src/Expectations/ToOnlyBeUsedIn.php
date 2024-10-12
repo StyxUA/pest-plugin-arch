@@ -42,13 +42,13 @@ final class ToOnlyBeUsedIn
                     $blueprint->expectToOnlyBeUsedIn(
                         $options,
                         static function (string $value, string $notAllowedDependOn, ?Violation $violation): void {
+                            $message = "Expecting '$value' not to be used on '$notAllowedDependOn'.";
+
                             if (! $violation instanceof Violation) {
-                                throw new ExpectationFailedException(
-                                    "Expecting '$value' not to be used on '$notAllowedDependOn'.",
-                                );
+                                throw new ExpectationFailedException($message);
                             }
 
-                            throw new ArchExpectationFailedException($violation, "Expecting '$value' not to be used on '$notAllowedDependOn'.");
+                            throw new ArchExpectationFailedException($violation, $message);
                         },
                     );
                 },
