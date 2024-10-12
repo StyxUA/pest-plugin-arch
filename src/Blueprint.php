@@ -62,7 +62,6 @@ final class Blueprint
 
         foreach ($this->target->value as $targetValue) {
             $targetLayer = $this->layerFactory->make($options, $targetValue, false);
-
             foreach ($this->dependencies->values as $dependency) {
                 $dependencyLayer = $this->layerFactory->make($options, $dependency->value);
 

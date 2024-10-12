@@ -30,4 +30,9 @@ final class ObjectUsesByLines implements IteratorAggregate
 
         return $this;
     }
+
+    public function cloneFiltered(callable $callback): self
+    {
+        return (new self($this->uses))->filter($callback);
+    }
 }

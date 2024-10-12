@@ -56,12 +56,13 @@ final class LayerFactory
                     return true;
                 }))
             );
-            $object->usesByLines?->filter(static function ($use) use ($options): bool {
+            $object->usesByLines = $object->usesByLines->cloneFiltered(static function ($use) use ($options): bool {
                 foreach ($options->exclude as $exclude) {
                     if (str_starts_with($use['name'], $exclude)) {
                         return false;
                     }
                 }
+
                 return true;
             });
 
