@@ -54,7 +54,7 @@ final class Blueprint
     /**
      * Expects the target to use the given dependencies.
      *
-     * @param  callable(string, string, Violation|null): mixed  $failure
+     * @param  callable(string, string, Violation|null=): mixed  $failure
      */
     public function expectToUse(LayerOptions $options, callable $failure): void
     {
