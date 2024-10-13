@@ -16,7 +16,7 @@ final class ObjectUsesByLines implements IteratorAggregate
     /**
      * @param  array<int, array{name: string, startLine: int, endLine: int}>  $uses
      */
-    public function __construct(protected array $uses) {}
+    public function __construct(private array $uses) {}
 
     #[\ReturnTypeWillChange]
     public function getIterator(): Traversable
