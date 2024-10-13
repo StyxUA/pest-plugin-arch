@@ -54,7 +54,7 @@ final class Blueprint
     /**
      * Expects the target to use the given dependencies.
      *
-     * @param  callable(string, string): mixed  $failure
+     * @param  callable(string, string, Violation|null): mixed  $failure
      */
     public function expectToUse(LayerOptions $options, callable $failure): void
     {
@@ -62,6 +62,13 @@ final class Blueprint
 
         foreach ($this->target->value as $targetValue) {
             $targetLayer = $this->layerFactory->make($options, $targetValue, false);
+
+            $targetUses = array_merge(...array_map(
+                static fn (Objects\ObjectDescription|Objects\FunctionDescription $object): array => iterator_to_array($object->usesByLines->getIterator()), // @phpstan-ignore-line
+                iterator_to_array($targetLayer->getIterator()),
+            ));
+            $targetUsesNames = array_column($targetUses, 'name');
+
             foreach ($this->dependencies->values as $dependency) {
                 $dependencyLayer = $this->layerFactory->make($options, $dependency->value);
 
@@ -73,12 +80,7 @@ final class Blueprint
                     iterator_to_array($dependencyLayer->getIterator()),
                 );
 
-                $objectsUses = array_column(array_merge(...array_map(
-                    static fn (Objects\ObjectDescription|Objects\FunctionDescription $object): array => iterator_to_array($object->usesByLines->getIterator()), // @phpstan-ignore-line
-                    iterator_to_array($targetLayer->getIterator()),
-                )), 'name');
-
-                $uses = array_intersect($objectsUses, $expectedUses);
+                $uses = array_intersect($targetUsesNames, $expectedUses);
                 if ($uses === []) {
                     $failure(
                         $targetValue,
